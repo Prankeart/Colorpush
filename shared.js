@@ -1,24 +1,23 @@
 // shared.js — Verici ve Alıcı arasında paylaşılan protokol
 // ================================================================
 
-// ---------- SABİTLER ----------
-const GRID_SIZE = 8;                        // 8x8 hücre
-const CELLS = GRID_SIZE * GRID_SIZE;        // 64 hücre
-const BITS_PER_CELL = 2;                    // 4 renk = 2 bit/hücre
-const BYTES_PER_FRAME = 16;                 // 64*2/8 = 16 byte
-const HEADER_SIZE = 6;                      // idx(2) + total(2) + len(2)
-const DATA_PER_FRAME = 8;                   // 16 - 6 - 2(checksum) = 8
+const GRID_SIZE = 8;
+const CELLS = GRID_SIZE * GRID_SIZE;
+const BITS_PER_CELL = 2;
+const BYTES_PER_FRAME = 16;
+const HEADER_SIZE = 6;
+const DATA_PER_FRAME = 8;
 const CHECKSUM_OFFSET = 14;
 
-// 4 renk paleti (00, 01, 10, 11)
+// ⚠️ SİYAH YOK! Arka planla karışmasın diye MAVİ kullanıyoruz.
+// Renkler RGB uzayında birbirinden maksimum uzakta seçildi.
 const PALETTE = [
-  { name: 'siyah',   r: 0,   g: 0,   b: 0   },
-  { name: 'kirmizi', r: 255, g: 50,  b: 50  },
-  { name: 'yesil',   r: 50,  g: 220, b: 50  },
-  { name: 'beyaz',   r: 255, g: 255, b: 255 },
+  { name: 'mavi',    r: 30,  g: 100, b: 255 },  // 00
+  { name: 'kirmizi', r: 255, g: 40,  b: 40  },  // 01
+  { name: 'yesil',   r: 40,  g: 220, b: 60  },  // 10
+  { name: 'beyaz',   r: 255, g: 255, b: 255 },  // 11
 ];
 
-// ---------- CRC16-CCITT ----------
 function crc16(bytes, len) {
   let crc = 0xFFFF;
   for (let i = 0; i < len; i++) {
@@ -32,9 +31,6 @@ function crc16(bytes, len) {
   return crc;
 }
 
-// ---------- KODLAMA ----------
-
-// Byte dizisini frame'lere böl
 function encodeFrames(data) {
   const totalLen = data.length;
   const numFrames = Math.max(1, Math.ceil(totalLen / DATA_PER_FRAME));
@@ -63,16 +59,13 @@ function encodeFrames(data) {
   return { frames, numFrames, totalLen };
 }
 
-// Frame geçerli mi? (CRC + sanity)
 function validateFrame(frame) {
   const cs = (frame[CHECKSUM_OFFSET] << 8) | frame[CHECKSUM_OFFSET + 1];
   if (cs !== crc16(frame, CHECKSUM_OFFSET)) return false;
-  // Tamamen sıfır frame reddet (boş okuma gürültüsü)
   for (let i = 0; i < CHECKSUM_OFFSET; i++) if (frame[i] !== 0) return true;
   return false;
 }
 
-// Frame -> 64 hücre (renk indeksi)
 function frameToCells(frame) {
   const cells = new Uint8Array(CELLS);
   for (let i = 0; i < BYTES_PER_FRAME; i++) {
@@ -85,7 +78,6 @@ function frameToCells(frame) {
   return cells;
 }
 
-// 64 hücre -> frame
 function cellsToFrame(cells) {
   const frame = new Uint8Array(BYTES_PER_FRAME);
   for (let i = 0; i < BYTES_PER_FRAME; i++) {
@@ -97,7 +89,6 @@ function cellsToFrame(cells) {
   return frame;
 }
 
-// RGB -> en yakın palet indeksi (Öklid mesafesi)
 function classifyColor(r, g, b) {
   let best = 0, bestDist = Infinity;
   for (let i = 0; i < PALETTE.length; i++) {
@@ -109,7 +100,6 @@ function classifyColor(r, g, b) {
   return best;
 }
 
-// Frame header'ını oku
 function parseFrameHeader(frame) {
   return {
     index:  (frame[0] << 8) | frame[1],
@@ -118,7 +108,6 @@ function parseFrameHeader(frame) {
   };
 }
 
-// Toplanan frame'lerden orijinal veriyi birleştir
 function assembleData(receivedMap, totalFrames, dataLength) {
   const buffer = new Uint8Array(totalFrames * DATA_PER_FRAME);
   for (let i = 0; i < totalFrames; i++) {
