@@ -1,6 +1,4 @@
-// shared.js — Verici ve Alıcı arasında paylaşılan protokol
-// ================================================================
-
+// shared.js
 const GRID_SIZE = 8;
 const CELLS = GRID_SIZE * GRID_SIZE;
 const BITS_PER_CELL = 2;
@@ -9,13 +7,12 @@ const HEADER_SIZE = 6;
 const DATA_PER_FRAME = 8;
 const CHECKSUM_OFFSET = 14;
 
-// ⚠️ SİYAH YOK! Arka planla karışmasın diye MAVİ kullanıyoruz.
-// Renkler RGB uzayında birbirinden maksimum uzakta seçildi.
+// ⚠️ SİYAH ve BEYAZ YOK! Hepsi yüksek doygunluklu.
 const PALETTE = [
-  { name: 'mavi',    r: 30,  g: 100, b: 255 },  // 00
-  { name: 'kirmizi', r: 255, g: 40,  b: 40  },  // 01
-  { name: 'yesil',   r: 40,  g: 220, b: 60  },  // 10
-  { name: 'beyaz',   r: 255, g: 255, b: 255 },  // 11
+  { name: 'kirmizi', r: 255, g: 0,   b: 0   }, // 00
+  { name: 'yesil',   r: 0,   g: 255, b: 0   }, // 01
+  { name: 'mavi',    r: 0,   g: 100, b: 255 }, // 10
+  { name: 'sari',    r: 255, g: 230, b: 0   }, // 11
 ];
 
 function crc16(bytes, len) {
@@ -35,27 +32,20 @@ function encodeFrames(data) {
   const totalLen = data.length;
   const numFrames = Math.max(1, Math.ceil(totalLen / DATA_PER_FRAME));
   const frames = [];
-
   for (let i = 0; i < numFrames; i++) {
     const frame = new Uint8Array(BYTES_PER_FRAME);
-    frame[0] = (i >> 8) & 0xFF;
-    frame[1] = i & 0xFF;
-    frame[2] = (numFrames >> 8) & 0xFF;
-    frame[3] = numFrames & 0xFF;
-    frame[4] = (totalLen >> 8) & 0xFF;
-    frame[5] = totalLen & 0xFF;
-
+    frame[0] = (i >> 8) & 0xFF;       frame[1] = i & 0xFF;
+    frame[2] = (numFrames >> 8) & 0xFF; frame[3] = numFrames & 0xFF;
+    frame[4] = (totalLen >> 8) & 0xFF;  frame[5] = totalLen & 0xFF;
     for (let j = 0; j < DATA_PER_FRAME; j++) {
       const idx = i * DATA_PER_FRAME + j;
       frame[HEADER_SIZE + j] = idx < totalLen ? data[idx] : 0;
     }
-
     const cs = crc16(frame, CHECKSUM_OFFSET);
     frame[CHECKSUM_OFFSET]     = (cs >> 8) & 0xFF;
     frame[CHECKSUM_OFFSET + 1] = cs & 0xFF;
     frames.push(frame);
   }
-
   return { frames, numFrames, totalLen };
 }
 
